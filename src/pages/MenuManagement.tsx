@@ -161,6 +161,52 @@ export default function MenuManagement() {
     fetchMenuItems(selectedMenu);
   };
 
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedMenu) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const rows = text.split("\n").map(row => row.split(","));
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      
+      const items = rows.slice(1).filter(row => row.length > 1).map(row => {
+        const item: any = { menu_id: selectedMenu };
+        headers.forEach((header, index) => {
+          const value = row[index]?.trim();
+          if (value) {
+            if (header === 'day_of_week' || header === 'day') item.day_of_week = value;
+            else if (header === 'meal_type' || header === 'meal') item.meal_type = value;
+            else if (['calories', 'protein', 'carbs', 'fats', 'fiber'].includes(header)) {
+              item[header] = parseFloat(value) || null;
+            } else {
+              item[header] = value;
+            }
+          }
+        });
+        return item;
+      });
+
+      const { error } = await supabase.from("menu_items").insert(items);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success!",
+          description: `Added ${items.length} items from CSV`,
+        });
+        fetchMenuItems(selectedMenu);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const deleteMenuItem = async (itemId: string) => {
     const { error } = await supabase.from("menu_items").delete().eq("id", itemId);
 
@@ -240,10 +286,27 @@ export default function MenuManagement() {
             {selectedMenu ? (
               <>
                 <Card className="shadow-medium border-0 bg-gradient-card">
-                  <CardHeader>
-                    <CardTitle>Add Menu Item</CardTitle>
-                    <CardDescription>Add items to your selected menu</CardDescription>
-                  </CardHeader>
+              <CardHeader>
+                <CardTitle>Add Menu Items</CardTitle>
+                <CardDescription>Add items manually or upload a CSV file</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6">
+                  <Label htmlFor="csv-upload" className="cursor-pointer">
+                    <div className="flex items-center gap-2 p-4 border-2 border-dashed rounded-lg hover:bg-accent transition-colors">
+                      <Upload className="h-5 w-5" />
+                      <span>Upload CSV (name, description, calories, protein, carbs, fats, fiber, category, day_of_week, meal_type)</span>
+                    </div>
+                  </Label>
+                  <Input
+                    id="csv-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="hidden"
+                  />
+                </div>
+              </CardContent>
                   <CardContent className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">

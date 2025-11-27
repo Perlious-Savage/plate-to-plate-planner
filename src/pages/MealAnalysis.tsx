@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Camera, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MealAnalysis() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [dayOfWeek, setDayOfWeek] = useState<string>("");
+  const [mealType, setMealType] = useState<string>("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [suggestions, setSuggestions] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -22,10 +29,46 @@ export default function MealAnalysis() {
   };
 
   const analyzeImage = async () => {
-    toast({
-      title: "Analysis feature coming soon!",
-      description: "AI meal analysis will be available shortly",
-    });
+    if (!selectedImage || !dayOfWeek || !mealType) {
+      toast({
+        title: "Missing information",
+        description: "Please select day, meal type, and upload an image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAnalyzing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase.functions.invoke("analyze-meal", {
+        body: {
+          imageBase64: selectedImage,
+          userId: user.id,
+          dayOfWeek,
+          mealType,
+        },
+      });
+
+      if (error) throw error;
+
+      setSuggestions(data.suggestions);
+      toast({
+        title: "Analysis complete!",
+        description: "Check out your personalized suggestions below",
+      });
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast({
+        title: "Analysis failed",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -40,11 +83,48 @@ export default function MealAnalysis() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <Card className="shadow-large border-0 bg-gradient-card">
+            <CardHeader>
+              <CardTitle>Meal Details</CardTitle>
+              <CardDescription>Tell us what meal you're analyzing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Day of Week</Label>
+                  <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select day" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(day => (
+                        <SelectItem key={day} value={day}>{day}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Meal Type</Label>
+                  <Select value={mealType} onValueChange={setMealType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select meal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["Breakfast", "Lunch", "Dinner", "Snacks"].map(meal => (
+                        <SelectItem key={meal} value={meal}>{meal}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="shadow-large border-0 bg-gradient-card">
             <CardHeader>
               <CardTitle>Take or Upload Photo</CardTitle>
-              <CardDescription>Get personalized meal suggestions based on your goals</CardDescription>
+              <CardDescription>Capture your meal for analysis</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {selectedImage ? (
@@ -54,8 +134,19 @@ export default function MealAnalysis() {
                     <Button variant="outline" className="flex-1" onClick={() => setSelectedImage(null)}>
                       Change Photo
                     </Button>
-                    <Button className="flex-1 bg-gradient-primary" onClick={analyzeImage}>
-                      Analyze Meal
+                    <Button 
+                      className="flex-1 bg-gradient-primary" 
+                      onClick={analyzeImage}
+                      disabled={analyzing || !dayOfWeek || !mealType}
+                    >
+                      {analyzing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        "Analyze Meal"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -69,6 +160,20 @@ export default function MealAnalysis() {
               )}
             </CardContent>
           </Card>
+
+          {suggestions && (
+            <Card className="shadow-large border-0 bg-gradient-card">
+              <CardHeader>
+                <CardTitle>AI Suggestions</CardTitle>
+                <CardDescription>Personalized swaps from your menu</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                  {suggestions}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
