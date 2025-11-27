@@ -47,10 +47,12 @@ export type Database = {
           carbs: number | null
           category: string | null
           created_at: string
+          day_of_week: string | null
           description: string | null
           fats: number | null
           fiber: number | null
           id: string
+          meal_type: string | null
           menu_id: string
           name: string
           protein: number | null
@@ -60,10 +62,12 @@ export type Database = {
           carbs?: number | null
           category?: string | null
           created_at?: string
+          day_of_week?: string | null
           description?: string | null
           fats?: number | null
           fiber?: number | null
           id?: string
+          meal_type?: string | null
           menu_id: string
           name: string
           protein?: number | null
@@ -73,10 +77,12 @@ export type Database = {
           carbs?: number | null
           category?: string | null
           created_at?: string
+          day_of_week?: string | null
           description?: string | null
           fats?: number | null
           fiber?: number | null
           id?: string
+          meal_type?: string | null
           menu_id?: string
           name?: string
           protein?: number | null

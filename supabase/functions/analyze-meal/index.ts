@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, userId } = await req.json();
+    const { imageBase64, userId, dayOfWeek, mealType } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     const supabase = createClient(
@@ -25,16 +25,24 @@ serve(async (req) => {
       supabase.from('profiles').select('*').eq('user_id', userId).single(),
       supabase.from('user_goals').select('*').eq('user_id', userId).single(),
       supabase.from('user_allergies').select('*').eq('user_id', userId),
-      supabase.from('menus').select('*, menu_items(*)').eq('user_id', userId),
+      supabase.from('menus').select('*, menu_items!inner(*)').eq('user_id', userId).eq('menu_items.day_of_week', dayOfWeek).eq('menu_items.meal_type', mealType),
     ]);
 
-    const systemPrompt = `You are a nutrition expert. Analyze the meal image and provide swap suggestions based on:
-- Goal: ${goal.data?.goal_type}
-- Weight: ${profile.data?.weight}kg, Height: ${profile.data?.height}cm
-- Allergies: ${allergies.data?.map(a => a.allergy_name).join(', ') || 'None'}
-- Available menu items: ${JSON.stringify(menus.data)}
+    // Filter menu items by day and meal type
+    const relevantItems = menus.data?.flatMap(menu => 
+      menu.menu_items?.filter((item: any) => 
+        item.day_of_week === dayOfWeek && item.meal_type === mealType
+      ) || []
+    ) || [];
 
-Provide specific food swaps from the menu that better align with the user's goals.`;
+    const systemPrompt = `You are a nutrition expert. Analyze the meal image and provide swap suggestions based on:
+- Goal: ${goal.data?.goal_type || 'general health'}
+- Weight: ${profile.data?.weight || 'N/A'}kg, Height: ${profile.data?.height || 'N/A'}cm
+- Allergies: ${allergies.data?.map(a => a.allergy_name).join(', ') || 'None'}
+- Day: ${dayOfWeek}, Meal: ${mealType}
+- Available menu items for this meal: ${JSON.stringify(relevantItems)}
+
+Analyze the food in the image and suggest healthier swaps ONLY from the available menu items listed above that better align with the user's goals. Be specific about which items to swap and why.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
