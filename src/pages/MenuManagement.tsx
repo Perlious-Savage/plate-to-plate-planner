@@ -161,6 +161,31 @@ export default function MenuManagement() {
     fetchMenuItems(selectedMenu);
   };
 
+  const normalizeDay = (day: string): string | null => {
+    const normalized = day.trim().toLowerCase();
+    const dayMap: { [key: string]: string } = {
+      'monday': 'Monday', 'mon': 'Monday',
+      'tuesday': 'Tuesday', 'tue': 'Tuesday', 'tues': 'Tuesday',
+      'wednesday': 'Wednesday', 'wed': 'Wednesday',
+      'thursday': 'Thursday', 'thu': 'Thursday', 'thur': 'Thursday', 'thurs': 'Thursday',
+      'friday': 'Friday', 'fri': 'Friday',
+      'saturday': 'Saturday', 'sat': 'Saturday',
+      'sunday': 'Sunday', 'sun': 'Sunday',
+    };
+    return dayMap[normalized] || null;
+  };
+
+  const normalizeMealType = (meal: string): string | null => {
+    const normalized = meal.trim().toLowerCase();
+    const mealMap: { [key: string]: string } = {
+      'breakfast': 'Breakfast',
+      'lunch': 'Lunch',
+      'dinner': 'Dinner',
+      'snacks': 'Snacks', 'snack': 'Snacks',
+    };
+    return mealMap[normalized] || null;
+  };
+
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedMenu) return;
@@ -171,22 +196,36 @@ export default function MenuManagement() {
       const rows = text.split("\n").map(row => row.split(","));
       const headers = rows[0].map(h => h.trim().toLowerCase());
       
-      const items = rows.slice(1).filter(row => row.length > 1).map(row => {
+      const items = rows.slice(1).filter(row => row.length > 1 && row.some(cell => cell?.trim())).map((row, idx) => {
         const item: any = { menu_id: selectedMenu };
         headers.forEach((header, index) => {
           const value = row[index]?.trim();
           if (value) {
-            if (header === 'day_of_week' || header === 'day') item.day_of_week = value;
-            else if (header === 'meal_type' || header === 'meal') item.meal_type = value;
-            else if (['calories', 'protein', 'carbs', 'fats', 'fiber'].includes(header)) {
-              item[header] = parseFloat(value) || null;
+            if (header === 'day_of_week' || header === 'day') {
+              const day = normalizeDay(value);
+              if (day) item.day_of_week = day;
+            } else if (header === 'meal_type' || header === 'meal') {
+              const meal = normalizeMealType(value);
+              if (meal) item.meal_type = meal;
+            } else if (['calories', 'protein', 'carbs', 'fats', 'fiber'].includes(header)) {
+              const num = parseFloat(value);
+              item[header] = isNaN(num) ? null : num;
             } else {
               item[header] = value;
             }
           }
         });
         return item;
-      });
+      }).filter(item => item.name); // Only include items with a name
+
+      if (items.length === 0) {
+        toast({
+          title: "Error",
+          description: "No valid items found in CSV",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const { error } = await supabase.from("menu_items").insert(items);
       
