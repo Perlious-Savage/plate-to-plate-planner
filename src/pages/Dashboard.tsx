@@ -190,9 +190,14 @@ export default function Dashboard() {
                     return (
                       <div key={analysis.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">
-                            {suggestions.meal_type || 'Meal'} — {suggestions.calories || 0} kcal
-                          </span>
+                          <div className="space-y-0.5">
+                            <div className="font-medium text-sm">
+                              {suggestions.day_of_week || 'Unknown'} • {suggestions.meal_type || 'Meal'}
+                            </div>
+                            <div className="text-lg font-bold text-primary">
+                              {suggestions.calories || 0} kcal
+                            </div>
+                          </div>
                           <span className="text-xs text-muted-foreground">
                             {date.toLocaleDateString()}
                           </span>
