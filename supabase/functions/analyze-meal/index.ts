@@ -129,13 +129,18 @@ Your task:
     });
 
     const data = await response.json();
+    console.log('AI Response:', JSON.stringify(data, null, 2));
+    
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {
+      console.error('No tool call in response');
       throw new Error('No analysis returned from AI');
     }
 
     const analysis = JSON.parse(toolCall.function.arguments);
+    console.log('Parsed analysis:', JSON.stringify(analysis, null, 2));
+    console.log('Number of swaps:', analysis.swaps?.length || 0);
 
     // Save analysis to database
     const { error: saveError } = await supabase.from('food_analyses').insert({
