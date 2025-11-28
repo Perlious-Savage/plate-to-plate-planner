@@ -15,9 +15,10 @@ serve(async (req) => {
     const { imageBase64, userId, dayOfWeek, mealType } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
+    // Use service role key to bypass RLS when saving analysis
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     // Fetch user data
@@ -43,14 +44,24 @@ User Context:
 - Allergies: ${allergies.data?.map(a => a.allergy_name).join(', ') || 'None'}
 - Day: ${dayOfWeek}, Meal: ${mealType}
 
-Available menu items for this day and meal type: ${JSON.stringify(relevantItems)}
+Available menu items for this day and meal type (${dayOfWeek} - ${mealType}):
+${relevantItems.length > 0 ? JSON.stringify(relevantItems.map(item => ({
+  name: item.name,
+  calories: item.calories,
+  protein: item.protein,
+  carbs: item.carbs,
+  fats: item.fats,
+  fiber: item.fiber
+}))) : 'No menu items found for this day and meal type'}
 
 Your task:
 1. Identify the food items visible in the image
 2. Estimate the total nutritional values for the meal
 3. Evaluate if this meal aligns with the user's goal
-4. Recommend 1-3 healthier swaps ONLY from the available menu items above
-5. Explain why each swap is healthier based on nutritional differences`;
+4. IMPORTANT: Recommend 1-3 healthier swaps ONLY from the available menu items listed above for ${dayOfWeek} ${mealType}
+5. If no menu items are available, return an empty swaps array
+6. Each swap must use the exact 'name' field from the menu items
+7. Explain why each swap is healthier based on nutritional differences (lower calories, higher protein, etc.)`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
