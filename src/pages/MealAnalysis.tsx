@@ -13,7 +13,7 @@ export default function MealAnalysis() {
   const [dayOfWeek, setDayOfWeek] = useState<string>("");
   const [mealType, setMealType] = useState<string>("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [suggestions, setSuggestions] = useState<string>("");
+  const [analysis, setAnalysis] = useState<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -54,10 +54,10 @@ export default function MealAnalysis() {
 
       if (error) throw error;
 
-      setSuggestions(data.suggestions);
+      setAnalysis(data.analysis);
       toast({
         title: "Analysis complete!",
-        description: "Check out your personalized suggestions below",
+        description: "Check out your nutritional breakdown and swap suggestions",
       });
     } catch (error) {
       console.error("Analysis error:", error);
@@ -161,18 +161,73 @@ export default function MealAnalysis() {
             </CardContent>
           </Card>
 
-          {suggestions && (
-            <Card className="shadow-large border-0 bg-gradient-card">
-              <CardHeader>
-                <CardTitle>AI Suggestions</CardTitle>
-                <CardDescription>Personalized swaps from your menu</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                  {suggestions}
-                </div>
-              </CardContent>
-            </Card>
+          {analysis && (
+            <>
+              <Card className="shadow-large border-0 bg-gradient-card">
+                <CardHeader>
+                  <CardTitle>Nutritional Breakdown</CardTitle>
+                  <CardDescription>
+                    {mealType} — {analysis.calories} kcal
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Detected Items</p>
+                        <p className="text-sm font-medium">{analysis.detected_items?.join(', ')}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 pt-4 border-t">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Carbs</p>
+                        <p className="text-2xl font-bold text-primary">{analysis.carbs}g</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Protein</p>
+                        <p className="text-2xl font-bold text-primary">{analysis.protein}g</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fats</p>
+                        <p className="text-2xl font-bold text-primary">{analysis.fats}g</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fiber</p>
+                        <p className="text-2xl font-bold text-primary">{analysis.fiber}g</p>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground mb-2">Goal Alignment</p>
+                      <p className="text-sm">{analysis.goal_alignment}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {analysis.swaps && analysis.swaps.length > 0 && (
+                <Card className="shadow-large border-0 bg-gradient-card">
+                  <CardHeader>
+                    <CardTitle>Healthier Swaps</CardTitle>
+                    <CardDescription>Recommended alternatives from your menu</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {analysis.swaps.map((swap: any, idx: number) => (
+                        <div key={idx} className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm line-through text-muted-foreground">{swap.from_item}</span>
+                            <span className="text-sm font-medium">→</span>
+                            <span className="text-sm font-semibold text-primary">{swap.to_item}</span>
+                          </div>
+                          <p className="text-sm">{swap.reason}</p>
+                          <p className="text-xs text-muted-foreground">💡 {swap.nutritional_benefit}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </main>

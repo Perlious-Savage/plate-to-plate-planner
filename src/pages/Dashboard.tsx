@@ -9,11 +9,13 @@ import { Camera, Upload, Menu, LogOut, User, FileText } from "lucide-react";
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [goal, setGoal] = useState<any>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUserData();
+    fetchRecentAnalyses();
   }, []);
 
   const fetchUserData = async () => {
@@ -38,6 +40,25 @@ export default function Dashboard() {
       }
     } catch (error: any) {
       console.error("Error fetching user data:", error);
+    }
+  };
+
+  const fetchRecentAnalyses = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("food_analyses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentAnalyses(data || []);
+    } catch (error: any) {
+      console.error("Error fetching analyses:", error);
     }
   };
 
@@ -156,10 +177,42 @@ export default function Dashboard() {
               <CardDescription>Your meal analysis history</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Camera className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>No analyses yet. Start by taking a photo of your meal!</p>
-              </div>
+              {recentAnalyses.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Camera className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No analyses yet. Start by taking a photo of your meal!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentAnalyses.map((analysis) => {
+                    const suggestions = analysis.suggestions || {};
+                    const date = new Date(analysis.created_at);
+                    return (
+                      <div key={analysis.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {suggestions.meal_type || 'Meal'} — {suggestions.calories || 0} kcal
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {date.toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <span>Carbs: {suggestions.carbs || 0}g</span>
+                          <span>Protein: {suggestions.protein || 0}g</span>
+                          <span>Fats: {suggestions.fats || 0}g</span>
+                          <span>Fiber: {suggestions.fiber || 0}g</span>
+                        </div>
+                        {analysis.detected_items && (
+                          <p className="text-xs text-muted-foreground">
+                            {analysis.detected_items.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
