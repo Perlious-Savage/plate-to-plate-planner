@@ -68,15 +68,26 @@ export default function Onboarding() {
 
       if (profileError) throw profileError;
 
-      // Insert goal
+      // Upsert goal (update if exists, insert if not)
       const { error: goalError } = await supabase
         .from("user_goals")
-        .upsert({
-          user_id: user.id,
-          goal_type: goal,
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            goal_type: goal,
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
 
       if (goalError) throw goalError;
+
+      // Delete existing allergies and insert new ones
+      await supabase
+        .from("user_allergies")
+        .delete()
+        .eq("user_id", user.id);
 
       // Insert allergies
       if (selectedAllergies.length > 0) {
