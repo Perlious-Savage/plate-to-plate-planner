@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
 export default function Auth() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,6 +32,7 @@ export default function Auth() {
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
+        navigate("/dashboard");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -43,6 +46,7 @@ export default function Auth() {
           title: "Account created!",
           description: "Welcome to NutriSwap!",
         });
+        navigate("/onboarding");
       }
     } catch (error: any) {
       toast({
