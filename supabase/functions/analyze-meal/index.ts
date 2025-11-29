@@ -36,32 +36,43 @@ serve(async (req) => {
       ) || []
     ) || [];
 
-    const systemPrompt = `You are a nutrition expert. Analyze the meal image and provide detailed nutritional information and swap suggestions.
+    // Get user's allergens list
+    const userAllergens = allergies.data?.map(a => a.allergy_name.toLowerCase()) || [];
+    
+    const systemPrompt = `You are a personalized nutrition expert analyzing meals for a user with specific health goals and dietary restrictions.
 
-User Context:
-- Goal: ${goal.data?.goal_type || 'general health'}
+**USER PROFILE:**
+- PRIMARY GOAL: ${goal.data?.goal_type || 'general health'}
 - Weight: ${profile.data?.weight || 'N/A'}kg, Height: ${profile.data?.height || 'N/A'}cm
-- Allergies: ${allergies.data?.map(a => a.allergy_name).join(', ') || 'None'}
-- Day: ${dayOfWeek}, Meal: ${mealType}
+- Gender: ${profile.data?.gender || 'N/A'}
+- ALLERGIES (CRITICAL - NEVER recommend items containing these): ${userAllergens.length > 0 ? userAllergens.join(', ') : 'None'}
 
-Available menu items for this day and meal type (${dayOfWeek} - ${mealType}):
-${relevantItems.length > 0 ? JSON.stringify(relevantItems.map(item => ({
-  name: item.name,
-  calories: item.calories,
-  protein: item.protein,
-  carbs: item.carbs,
-  fats: item.fats,
-  fiber: item.fiber
-}))) : 'No menu items found for this day and meal type'}
+**AVAILABLE MENU ITEMS for ${dayOfWeek} ${mealType}:**
+${relevantItems.length > 0 ? relevantItems.map((item, idx) => 
+  `${idx + 1}. "${item.name}" - ${item.calories || 0} kcal, Protein: ${item.protein || 0}g, Carbs: ${item.carbs || 0}g, Fats: ${item.fats || 0}g, Fiber: ${item.fiber || 0}g`
+).join('\n') : 'No menu items available for this meal'}
 
-Your task:
-1. Identify the food items visible in the image
-2. Estimate the total nutritional values for the meal
-3. Evaluate if this meal aligns with the user's goal
-4. IMPORTANT: Recommend 1-3 healthier swaps ONLY from the available menu items listed above for ${dayOfWeek} ${mealType}
-5. If no menu items are available, return an empty swaps array
-6. Each swap must use the exact 'name' field from the menu items
-7. Explain why each swap is healthier based on nutritional differences (lower calories, higher protein, etc.)`;
+**YOUR TASK:**
+1. Analyze the meal image and identify all food items
+2. Estimate total nutritional values (calories, protein, carbs, fats, fiber)
+3. Evaluate alignment with user's PRIMARY GOAL: "${goal.data?.goal_type || 'general health'}"
+4. **MANDATORY**: Recommend 2-3 healthier swap suggestions from the available menu items above that:
+   - Better align with the user's "${goal.data?.goal_type || 'general health'}" goal
+   - DO NOT contain any of the user's allergens: ${userAllergens.length > 0 ? userAllergens.join(', ') : 'none'}
+   - Offer clear nutritional benefits (e.g., lower calories for weight loss, higher protein for muscle gain)
+   - Use the EXACT name from the menu list above
+
+**SWAP REQUIREMENTS:**
+- If menu items are available above, you MUST provide at least 2 swap suggestions
+- Each swap must reference a detected item from the image and suggest a healthier menu alternative
+- Explain why each swap helps achieve the "${goal.data?.goal_type || 'general health'}" goal
+- State the specific nutritional improvement (e.g., "Saves 150 calories", "Adds 10g protein")
+
+**PERSONALIZATION RULES:**
+- For "Weight Loss": Prioritize lower calorie, high fiber options
+- For "Muscle Gain": Prioritize high protein options
+- For "General Health": Balance all macronutrients
+- NEVER suggest items containing: ${userAllergens.length > 0 ? userAllergens.join(', ') : 'no allergens listed'}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
